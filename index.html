@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         body {
@@ -22,8 +24,6 @@
             height: 100vh;
             overflow: hidden; /* Hide scrollbars for true full screen */
         }
-
-        /* Removed .game-container styling to make the game truly full screen */
 
         #gameCanvasContainer {
             position: fixed; /* Fixed position for full screen */
@@ -61,8 +61,6 @@
             align-items: flex-start;
         }
 
-        /* Removed top-right-ui styles */
-
         .bottom-center-ui {
             bottom: 20px;
             left: 50%;
@@ -73,13 +71,9 @@
             width: auto; /* Adjust width based on content */
         }
 
-        /* Removed game-title styles */
-
         .game-info-display {
             display: flex;
-            /* Changed to flex-start to align items to the left */
             justify-content: flex-start;
-            /* Removed width: 100% to allow content to dictate width */
             font-size: 1.2em;
             font-weight: bold;
             color: #cbd5e0;
@@ -184,8 +178,6 @@
         .hidden {
             display: none;
         }
-        /* Removed high-scores-list-container styles */
-        /* Removed high-scores-list styles */
 
         /* SEGA Logo Overlay Styling */
         #segaLogoOverlay {
@@ -248,6 +240,88 @@
             color: transparent; /* Fallback for non-webkit browsers */
             display: inline; /* Ensure it behaves like text */
         }
+
+        /* Mobile Controls Styling */
+        .mobile-controls {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            z-index: 100;
+            pointer-events: none; /* Allow clicks to pass through to canvas by default */
+        }
+
+        .mobile-controls > div {
+            pointer-events: auto; /* Re-enable pointer events for specific UI elements */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mobile-controls .control-button {
+            background: linear-gradient(145deg, #4a5568, #2d3748); /* Darker grey gradient */
+            color: white;
+            padding: 15px 20px;
+            border-radius: 50%; /* Make them round */
+            border: none;
+            cursor: pointer;
+            font-size: 1.5em; /* Larger icons */
+            width: 60px; /* Fixed size for round buttons */
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .mobile-controls .control-button:hover {
+            background: linear-gradient(145deg, #2d3748, #1a202c); /* Even darker on hover */
+            transform: translateY(-1px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .mobile-controls .control-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            background: #1a202c; /* Darkest on active */
+        }
+
+        /* Specific positioning for mobile buttons */
+        .mobile-controls .left-buttons {
+            align-items: flex-start;
+        }
+
+        .mobile-controls .right-buttons {
+            align-items: flex-end;
+        }
+
+        .mobile-controls .center-button {
+            align-self: center;
+        }
+
+        /* Media query to hide mobile controls on larger screens (e.g., desktop) */
+        @media (min-width: 768px) {
+            .mobile-controls {
+                display: none;
+            }
+        }
+
+        /* Media query to adjust text size for mobile/tablet */
+        @media (max-width: 767px) {
+            .game-info-display {
+                font-size: 1em; /* Smaller font size for game info */
+                padding: 6px 10px; /* Slightly smaller padding */
+                gap: 10px; /* Smaller gap */
+            }
+            .controls-info {
+                font-size: 0.8em; /* Smaller font size for controls info */
+                padding: 6px 10px; /* Slightly smaller padding */
+            }
+        }
     </style>
 </head>
 <body>
@@ -276,9 +350,20 @@
             <p>操作方法: ← → (ステアリング), ↑ (加速), ↓ (ブレーキ)</p>
         </div>
         <div class="button-group">
-            <!-- Removed 'hidden' class from startButton -->
             <button id="startButton" class="game-button">ゲーム開始</button>
             <button id="restartButton" class="game-button hidden">リスタート</button>
+        </div>
+    </div>
+
+    <!-- Mobile Controls Overlay -->
+    <div class="mobile-controls">
+        <div class="left-buttons">
+            <button id="mobileLeftButton" class="control-button"><i class="fas fa-arrow-left"></i></button>
+            <button id="mobileDownButton" class="control-button"><i class="fas fa-arrow-down"></i></button>
+        </div>
+        <div class="right-buttons">
+            <button id="mobileUpButton" class="control-button"><i class="fas fa-arrow-up"></i></button>
+            <button id="mobileRightButton" class="control-button"><i class="fas fa-arrow-right"></i></button>
         </div>
     </div>
 
@@ -309,6 +394,12 @@
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
         const messageBoxOkButton = document.getElementById('messageBoxOkButton');
+
+        // Mobile control buttons
+        const mobileUpButton = document.getElementById('mobileUpButton');
+        const mobileDownButton = document.getElementById('mobileDownButton');
+        const mobileLeftButton = document.getElementById('mobileLeftButton');
+        const mobileRightButton = document.getElementById('mobileRightButton');
 
         let animationFrameId;
         let gameStarted = false;
@@ -385,7 +476,7 @@
 
         messageBoxOkButton.addEventListener('click', hideMessageBox);
 
-        // Event Listeners for controls
+        // Event Listeners for keyboard controls
         document.addEventListener('keydown', (e) => {
             keys[e.key] = true;
         });
@@ -394,54 +485,37 @@
             keys[e.key] = false;
         });
 
-        // Touch controls (simple implementation for mobile playability)
-        let touchStartX = 0;
-        let touchStartY = 0;
+        // Mobile button control logic
+        function setupMobileButtonControls() {
+            // Function to simulate keydown
+            const pressKey = (key) => { keys[key] = true; };
+            // Function to simulate keyup
+            const releaseKey = (key) => { keys[key] = false; };
 
-        gameCanvasContainer.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Prevent default touch behavior like scrolling
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
+            // Up Button (Accelerate)
+            mobileUpButton.addEventListener('touchstart', (e) => { e.preventDefault(); pressKey('ArrowUp'); });
+            mobileUpButton.addEventListener('touchend', (e) => { e.preventDefault(); releaseKey('ArrowUp'); });
+            mobileUpButton.addEventListener('mousedown', () => pressKey('ArrowUp')); // For desktop testing
+            mobileUpButton.addEventListener('mouseup', () => releaseKey('ArrowUp')); // For desktop testing
 
-        gameCanvasContainer.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Prevent default touch behavior
-            const touchCurrentX = e.touches[0].clientX;
-            const touchCurrentY = e.touches[0].clientY;
+            // Down Button (Brake)
+            mobileDownButton.addEventListener('touchstart', (e) => { e.preventDefault(); pressKey('ArrowDown'); });
+            mobileDownButton.addEventListener('touchend', (e) => { e.preventDefault(); releaseKey('ArrowDown'); });
+            mobileDownButton.addEventListener('mousedown', () => pressKey('ArrowDown'));
+            mobileDownButton.addEventListener('mouseup', () => releaseKey('ArrowDown'));
 
-            const deltaX = touchCurrentX - touchStartX;
-            const deltaY = touchCurrentY - touchStartY;
+            // Left Button (Steer Left)
+            mobileLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); pressKey('ArrowLeft'); });
+            mobileLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); releaseKey('ArrowLeft'); });
+            mobileLeftButton.addEventListener('mousedown', () => pressKey('ArrowLeft'));
+            mobileLeftButton.addEventListener('mouseup', () => releaseKey('ArrowLeft'));
 
-            // Simulate left/right arrow keys for steering
-            if (deltaX > 20) { // Swipe right
-                keys['ArrowRight'] = true;
-                keys['ArrowLeft'] = false;
-            } else if (deltaX < -20) { // Swipe left
-                keys['ArrowLeft'] = true;
-                keys['ArrowRight'] = false;
-            } else {
-                keys['ArrowLeft'] = false;
-                keys['ArrowRight'] = false;
-            }
-
-            // Simulate up/down arrow keys for acceleration/braking
-            if (deltaY < -20) { // Swipe up (forward)
-                keys['ArrowUp'] = true;
-                keys['ArrowDown'] = false;
-            } else if (deltaY > 20) { // Swipe down (backward/brake)
-                keys['ArrowDown'] = true;
-                keys['ArrowUp'] = false;
-            } else {
-                keys['ArrowUp'] = false;
-                keys['ArrowDown'] = false;
-            }
-        });
-
-        gameCanvasContainer.addEventListener('touchend', (e) => {
-            e.preventDefault(); // Prevent default touch behavior
-            // Release all keys on touch end
-            keys = {};
-        });
+            // Right Button (Steer Right)
+            mobileRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); pressKey('ArrowRight'); });
+            mobileRightButton.addEventListener('touchend', (e) => { e.preventDefault(); releaseKey('ArrowRight'); });
+            mobileRightButton.addEventListener('mousedown', () => pressKey('ArrowRight'));
+            mobileRightButton.addEventListener('mouseup', () => releaseKey('ArrowRight'));
+        }
 
         // Function to create a car-like mesh (a group of boxes)
         function createCarMesh(color) {
@@ -828,8 +902,6 @@
             // Hide the start button and show restart button only after game over
             startButton.classList.add('hidden');
             restartButton.classList.add('hidden');
-            // animate() is now called once on window.onload, and it continues to loop.
-            // No need to call it here again to start the rendering.
         }
 
         function endGame() {
@@ -891,6 +963,7 @@
             initThreeJS(); // Initialize Three.js
             loadHighScores(); // Load high scores from local storage
             animate(); // Start the 3D animation loop immediately, even before game starts
+            setupMobileButtonControls(); // Setup mobile button controls
 
             // Show "Created by Gemini" logo for a few seconds
             setTimeout(() => {
