@@ -269,21 +269,60 @@
                 }
             }
         }
+
+        /* Title Screen Styling */
+        #titleScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #1a202c; /* Same as body background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999; /* Below logo overlay, above canvas */
+            color: #e2e8f0;
+            /* Removed background image properties */
+        }
+
+        .game-title {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(0, 255, 255, 0.3);
+            color: #4299e1; /* Blue color for the title */
+            /* Removed background to text properties */
+        }
+
+        /* Adjustments for elements that are hidden/shown */
+        #gameCanvasContainer.hidden,
+        .ui-overlay.hidden,
+        #titleScreen.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <!-- Main game canvas container (will be full screen) -->
-    <div id="gameCanvasContainer">
-        <!-- Three.js renderer will append its canvas here -->
-    </div>
-
     <!-- SEGA Logo Overlay -->
     <div id="segaLogoOverlay">
         <div id="segaLogo">Created by <span id="gemini-gradient-text">Gemini</span></div>
     </div>
 
-    <!-- UI Overlays -->
-    <div class="ui-overlay top-left-ui">
+    <!-- Title Screen -->
+    <div id="titleScreen" class="hidden">
+        <h1 class="game-title">3D ドライビングゲーム</h1>
+        <button id="startButton" class="game-button">ゲーム開始</button>
+    </div>
+
+    <!-- Main game canvas container (initially hidden) -->
+    <div id="gameCanvasContainer" class="hidden">
+        <!-- Three.js renderer will append its canvas here -->
+    </div>
+
+    <!-- UI Overlays (initially hidden) -->
+    <div class="ui-overlay top-left-ui hidden">
         <div class="game-info-display">
             <div id="speedDisplay">速度: 0 km/h</div>
             <div id="distanceDisplay" class="ml-4">距離: 0 m</div>
@@ -292,12 +331,12 @@
         </div>
     </div>
 
-    <div class="ui-overlay bottom-center-ui">
+    <div class="ui-overlay bottom-center-ui hidden">
         <div class="controls-info">
             <p>操作方法: ← → (ステアリング), ↑ (加速), ↓ (ブレーキ)</p>
         </div>
         <div class="button-group">
-            <button id="startButton" class="game-button">ゲーム開始</button>
+            <!-- Start button is now on the title screen -->
             <button id="restartButton" class="game-button hidden">リスタート</button>
         </div>
     </div>
@@ -322,9 +361,10 @@
         const distanceDisplay = document.getElementById('distanceDisplay');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
         const timeDisplay = document.getElementById('timeDisplay'); // New time display element
-        const startButton = document.getElementById('startButton');
-        const restartButton = document.getElementById('restartButton');
+        const startButton = document.getElementById('startButton'); // Now on title screen
+        const restartButton = document.getElementById('restartButton'); // Still on game UI
         const segaLogoOverlay = document.getElementById('segaLogoOverlay');
+        const titleScreen = document.getElementById('titleScreen'); // New title screen element
 
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
@@ -380,7 +420,6 @@
             spawnDistance: 200, // How far ahead buildings spawn
             spawnInterval: 500, // Milliseconds between building spawns
             lastSpawnTime: 0,
-            // windowColor: 0x2c3e50 // Dark grey for windows - Removed as windows are no longer generated
         };
 
         // Opponent cars array
@@ -415,7 +454,7 @@
             keys[e.key] = false;
         });
 
-        // Touch controls for mobile (re-implemented)
+        // Touch controls for mobile
         let touchStartX = 0;
         let touchStartY = 0;
 
@@ -526,7 +565,7 @@
             return carGroup;
         }
 
-        // Function to create a building mesh (reverted to simpler boxes)
+        // Function to create a building mesh (simple boxes)
         function createBuildingMesh() {
             const width = building.minWidth + Math.random() * (building.maxWidth - building.minWidth);
             const height = building.minHeight + Math.random() * (building.maxHeight - building.minHeight);
@@ -812,6 +851,12 @@
         }
 
         function startGame() {
+            // Hide title screen and show game UI
+            titleScreen.classList.add('hidden');
+            gameCanvasContainer.classList.remove('hidden'); // Show the canvas
+            document.querySelector('.top-left-ui').classList.remove('hidden'); // Show game info
+            document.querySelector('.bottom-center-ui').classList.remove('hidden'); // Show controls info and restart button
+
             gameStarted = true;
             gameOver = false;
             distance = 0;
@@ -848,9 +893,7 @@
                 spawnBuilding(true);
             }
 
-            // Hide the start button and show restart button only after game over
-            startButton.classList.add('hidden');
-            restartButton.classList.add('hidden');
+            restartButton.classList.add('hidden'); // This should remain to hide restart button at start of game
         }
 
         function endGame() {
@@ -918,7 +961,8 @@
                 segaLogoOverlay.classList.add('fade-out');
                 setTimeout(() => {
                     segaLogoOverlay.style.display = 'none';
-                    // The start button is now visible and will initiate the game.
+                    // After logo fades out, show the title screen
+                    titleScreen.classList.remove('hidden');
                     updateUI(); // Update UI with initial values (speed 0, distance 0, etc.)
                 }, 1000); // Wait for fade-out transition to complete
             }, 1000); // Display logo for 1 second
