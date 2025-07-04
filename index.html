@@ -379,7 +379,8 @@
             colors: [0x7f8c8d, 0x95a5a6, 0xbdc3c7, 0xecf0f1], // Greyish colors
             spawnDistance: 200, // How far ahead buildings spawn
             spawnInterval: 500, // Milliseconds between building spawns
-            lastSpawnTime: 0
+            lastSpawnTime: 0,
+            // windowColor: 0x2c3e50 // Dark grey for windows - Removed as windows are no longer generated
         };
 
         // Opponent cars array
@@ -525,7 +526,7 @@
             return carGroup;
         }
 
-        // Function to create a building mesh
+        // Function to create a building mesh (reverted to simpler boxes)
         function createBuildingMesh() {
             const width = building.minWidth + Math.random() * (building.maxWidth - building.minWidth);
             const height = building.minHeight + Math.random() * (building.maxHeight - building.minHeight);
@@ -736,6 +737,7 @@
             const newBuilding = createBuildingMesh();
             // Randomly place building on left or right side of the road
             const side = Math.random() < 0.5 ? -1 : 1;
+            // Now that createBuildingMesh returns a THREE.Mesh directly, we can access its geometry parameters directly
             newBuilding.position.x = side * (road.width / 2 + newBuilding.geometry.parameters.width / 2 + Math.random() * 10);
             newBuilding.position.z = initialSpawn ? -Math.random() * building.spawnDistance : camera.position.z - building.spawnDistance;
             scene.add(newBuilding);
@@ -757,6 +759,7 @@
                 b.position.z += speedFactor;
 
                 // Recycle building if it moves behind the camera
+                // Now that b is a THREE.Mesh directly, access geometry parameters directly
                 if (b.position.z > camera.position.z + b.geometry.parameters.depth / 2) {
                     scene.remove(b);
                     buildings.splice(i, 1);
@@ -909,7 +912,6 @@
             initThreeJS(); // Initialize Three.js
             loadHighScores(); // Load high scores from local storage
             animate(); // Start the 3D animation loop immediately, even before game starts
-            // setupMobileButtonControls(); // Removed as per request to use touch gestures
 
             // Show "Created by Gemini" logo for a few seconds
             setTimeout(() => {
