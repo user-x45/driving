@@ -154,7 +154,7 @@
         }
 
         /* Message Box Styling */
-        .message-box {
+        .message-box, .settings-screen {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -171,7 +171,7 @@
             max-width: 90%;
             pointer-events: auto; /* Ensure message box is interactive */
         }
-        .message-box button {
+        .message-box button, .settings-screen button {
             margin-top: 20px;
             background-color: #4299e1;
             color: white;
@@ -182,7 +182,7 @@
             font-size: 1em;
             transition: background-color 0.3s ease;
         }
-        .message-box button:hover {
+        .message-box button:hover, .settings-screen button:hover {
             background-color: #3182ce;
         }
         .hidden {
@@ -330,6 +330,76 @@
         #titleScreen.hidden {
             display: none;
         }
+        /* New button group for title screen to arrange buttons horizontally */
+        #titleScreen .button-group {
+            flex-direction: row; /* Arrange buttons in a row */
+            margin-top: 40px; /* Add some space below subtitle */
+        }
+
+        /* Settings Screen specific styles */
+        .settings-screen {
+            padding: 30px;
+            min-width: 300px;
+        }
+        .settings-screen h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #4299e1;
+        }
+        .settings-option {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .settings-option label {
+            font-size: 1em;
+            margin-bottom: 8px;
+            color: #cbd5e0;
+        }
+        /* Enhanced Listbox (Select) Design */
+        .settings-option select {
+            background-color: #4a5568; /* Darker grey background */
+            color: #e2e8f0; /* Light text color */
+            border: 2px solid #4299e1; /* Blue border */
+            border-radius: 8px; /* More rounded corners */
+            padding: 10px 15px; /* Increased padding */
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            max-width: 200px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            transition: all 0.2s ease-in-out; /* Smooth transition for hover/focus */
+            -webkit-appearance: none; /* Remove default arrow for custom styling */
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%23e2e8f0" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); /* Custom SVG arrow */
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 18px;
+        }
+        .settings-option select:hover {
+            border-color: #3182ce; /* Darker blue on hover */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* More pronounced shadow on hover */
+        }
+        .settings-option select:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.7); /* Prominent focus ring */
+        }
+        .settings-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        /* Adjustments for elements that are hidden/shown */
+        #gameCanvasContainer.hidden,
+        .ui-overlay.hidden,
+        #titleScreen.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -342,7 +412,10 @@
     <div id="titleScreen" class="hidden">
         <h1 class="game-title">3D Driving Game</h1>
         <h2 id="gameSubtitle" class="game-subtitle"></h2> <!-- Subtitle element added here -->
-        <button id="startButton" class="game-button"></button>
+        <div class="button-group"> <!-- New button group for title screen -->
+            <button id="startButton" class="game-button"></button>
+            <button id="settingsButton" class="game-button"></button> <!-- Settings button moved here -->
+        </div>
     </div>
 
     <!-- Main game canvas container (initially hidden) -->
@@ -361,12 +434,12 @@
     </div>
 
     <div class="ui-overlay bottom-center-ui hidden">
+        <div class="button-group">
+            <!-- Settings button removed from here -->
+            <button id="restartButton" class="game-button hidden"></button>
+        </div>
         <div class="controls-info">
             <p id="controlsInfoText"></p>
-        </div>
-        <div class="button-group">
-            <!-- Start button is now on the title screen -->
-            <button id="restartButton" class="game-button hidden"></button>
         </div>
     </div>
 
@@ -374,6 +447,29 @@
     <div id="messageBox" class="message-box hidden">
         <p id="messageText"></p>
         <button id="messageBoxOkButton"></button>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settingsScreen" class="settings-screen hidden">
+        <h2 id="settingsTitle"></h2>
+        <div class="settings-option">
+            <label id="languageLabel" for="languageSelect"></label>
+            <select id="languageSelect">
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="zh-CN">简体中文</option>
+                <option value="ko">한국어</option>
+            </select>
+        </div>
+        <div class="settings-option">
+            <label id="carColorLabel" for="carColorSelect"></label>
+            <select id="carColorSelect">
+                <!-- Options will be dynamically populated by JavaScript -->
+            </select>
+        </div>
+        <div class="settings-buttons">
+            <button id="closeSettingsButton" class="game-button"></button>
+        </div>
     </div>
 
     <script>
@@ -396,6 +492,7 @@
         const timeDisplay = document.getElementById('timeDisplay'); // New time display element
         const startButton = document.getElementById('startButton'); // Now on title screen
         const restartButton = document.getElementById('restartButton'); // Still on game UI
+        const settingsButton = document.getElementById('settingsButton'); // Settings button
         const segaLogoOverlay = document.getElementById('segaLogoOverlay');
         const titleScreen = document.getElementById('titleScreen'); // New title screen element
         const controlsInfoText = document.getElementById('controlsInfoText'); // Controls info text element
@@ -404,6 +501,15 @@
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
         const messageBoxOkButton = document.getElementById('messageBoxOkButton');
+
+        const settingsScreen = document.getElementById('settingsScreen');
+        const settingsTitle = document.getElementById('settingsTitle');
+        const languageLabel = document.getElementById('languageLabel');
+        const languageSelect = document.getElementById('languageSelect');
+        const carColorLabel = document.getElementById('carColorLabel'); // New
+        const carColorSelect = document.getElementById('carColorSelect'); // New
+        const closeSettingsButton = document.getElementById('closeSettingsButton');
+
 
         let animationFrameId;
         let gameStarted = false;
@@ -421,7 +527,7 @@
             width: 2.0, // Approximate total width of the car model
             height: 1.5, // Approximate total height
             depth: 4.0, // Approximate total depth
-            color: 0xe53e3e, // Red (hex color for Three.js)
+            color: 0xe53e3e, // Red (hex color for Three.js) - Default color
             speed: 0, // Current speed
             maxSpeed: 20,
             acceleration: 0.2,
@@ -481,6 +587,7 @@
             en: {
                 startButton: "Start Game",
                 restartButton: "Restart",
+                settingsButton: "Settings",
                 speedDisplay: "Speed: ",
                 distanceDisplay: "Distance: ",
                 highScoreDisplay: "High Score: ",
@@ -495,11 +602,21 @@
                 highScoreSaved: "High score saved to local storage:",
                 highScoreLoaded: "High score loaded from local storage:",
                 invalidTimeScheduling: "Invalid time for scheduling in ",
-                subtitle: "Arcade Racing Experience" // English subtitle
+                subtitle: "Arcade Racing Experience",
+                settingsTitle: "Settings",
+                languageLabel: "Language:",
+                carColorLabel: "Car Color:", // New
+                colorRed: "Red (Default)", // Changed for English
+                colorBlue: "Blue", // New
+                colorGreen: "Green", // New
+                colorOrange: "Orange", // New
+                colorPurple: "Purple", // New
+                closeSettingsButton: "Close"
             },
             ja: {
                 startButton: "ゲーム開始",
                 restartButton: "リスタート",
+                settingsButton: "設定",
                 speedDisplay: "速度: ",
                 distanceDisplay: "距離: ",
                 highScoreDisplay: "ハイスコア: ",
@@ -514,7 +631,74 @@
                 highScoreSaved: "ハイスコアをローカルストレージに保存しました:",
                 highScoreLoaded: "ハイスコアをローカルストレージから読み込みました:",
                 invalidTimeScheduling: "スケジューリングの時間が無効です ",
-                subtitle: "アーケードレーシング体験" // Japanese subtitle
+                subtitle: "アーケードレーシング体験",
+                settingsTitle: "設定",
+                languageLabel: "言語:",
+                carColorLabel: "車の色:", // New
+                colorRed: "赤（デフォルト）", // Changed from 赤 to 赤（デフォルト）
+                colorBlue: "青", // New
+                colorGreen: "緑", // New
+                colorOrange: "オレンジ", // New
+                colorPurple: "紫", // New
+                closeSettingsButton: "閉じる"
+            },
+            'zh-CN': { // Simplified Chinese
+                startButton: "开始游戏",
+                restartButton: "重新开始",
+                settingsButton: "设置",
+                speedDisplay: "速度: ",
+                distanceDisplay: "距离: ",
+                highScoreDisplay: "最高分: ",
+                timeDisplay: "时间: ",
+                controlsInfoText: "控制: ← → (转向), ↑ (加速), ↓ (刹车)",
+                gameOverMessage: "游戏结束！\n您的距离: ",
+                timeUpMessage: "时间到！\n您的距离: ",
+                errorMessageSave: "错误: 保存最高分失败。",
+                errorMessageLoad: "错误: 加载最高分失败。",
+                okButton: "确定",
+                audioContextStarted: "AudioContext 已启动。",
+                highScoreSaved: "最高分已保存到本地存储:",
+                highScoreLoaded: "最高分已从本地存储加载:",
+                invalidTimeScheduling: "时间调度无效 ",
+                subtitle: "街机赛车体验",
+                settingsTitle: "设置",
+                languageLabel: "语言:",
+                carColorLabel: "汽车颜色:", // New
+                colorRed: "红色 (默认)", // Changed for Chinese
+                colorBlue: "蓝色", // New
+                colorGreen: "绿色", // New
+                colorOrange: "橙色", // New
+                colorPurple: "紫色", // New
+                closeSettingsButton: "关闭"
+            },
+            ko: { // Korean
+                startButton: "게임 시작",
+                restartButton: "다시 시작",
+                settingsButton: "설정",
+                speedDisplay: "속도: ",
+                distanceDisplay: "거리: ",
+                highScoreDisplay: "최고 점수: ",
+                timeDisplay: "시간: ",
+                controlsInfoText: "조작법: ← → (조향), ↑ (가속), ↓ (브레이크)",
+                gameOverMessage: "게임 오버!\n당신의 거리: ",
+                timeUpMessage: "시간 초과!\n당신의 거리: ",
+                errorMessageSave: "오류: 최고 점수를 저장하지 못했습니다.",
+                errorMessageLoad: "오류: 최고 점수를 불러오지 못했습니다.",
+                okButton: "확인",
+                audioContextStarted: "AudioContext가 시작되었습니다.",
+                highScoreSaved: "최고 점수가 로컬 저장소에 저장되었습니다:",
+                highScoreLoaded: "최고 점수가 로컬 저장소에서 로드되었습니다:",
+                invalidTimeScheduling: "유효하지 않은 스케줄링 시간 ",
+                subtitle: "아케이드 레이싱 경험",
+                settingsTitle: "설정",
+                languageLabel: "언어:",
+                carColorLabel: "자동차 색상:", // New
+                colorRed: "빨간색 (기본)", // Changed for Korean
+                colorBlue: "파란색", // New
+                colorGreen: "녹색", // New
+                colorOrange: "주황색", // New
+                colorPurple: "보라색", // New
+                closeSettingsButton: "닫기"
             }
         };
 
@@ -527,12 +711,43 @@
 
             startButton.textContent = t.startButton;
             restartButton.textContent = t.restartButton;
+            settingsButton.textContent = t.settingsButton;
             controlsInfoText.textContent = t.controlsInfoText;
             messageBoxOkButton.textContent = t.okButton;
-            gameSubtitle.textContent = t.subtitle; // Apply subtitle translation
+            gameSubtitle.textContent = t.subtitle;
+
+            settingsTitle.textContent = t.settingsTitle;
+            languageLabel.textContent = t.languageLabel;
+            carColorLabel.textContent = t.carColorLabel; // Apply car color label translation
+            closeSettingsButton.textContent = t.closeSettingsButton;
 
             // Update dynamic UI elements immediately
             updateUI();
+
+            // Set the HTML lang attribute for better accessibility and browser rendering
+            document.documentElement.lang = lang;
+
+            // Update the language select dropdown to reflect the current language
+            languageSelect.value = lang;
+
+            // Clear existing car color options
+            carColorSelect.innerHTML = '';
+            // Populate car color options based on current language
+            const carColors = [
+                { value: '0xe53e3e', key: 'colorRed' },
+                { value: '0x4299e1', key: 'colorBlue' },
+                { value: '0x48bb78', key: 'colorGreen' },
+                { value: '0xed8936', key: 'colorOrange' },
+                { value: '0x9f7aea', key: 'colorPurple' }
+            ];
+            carColors.forEach(colorOption => {
+                const option = document.createElement('option');
+                option.value = colorOption.value;
+                option.textContent = t[colorOption.key];
+                carColorSelect.appendChild(option);
+            });
+            // Set the selected car color value after populating options
+            carColorSelect.value = '0x' + playerCar.color.toString(16);
         }
 
         // Message box functions
@@ -546,6 +761,61 @@
         }
 
         messageBoxOkButton.addEventListener('click', hideMessageBox);
+
+        // Settings screen functions
+        function showSettingsScreen() {
+            settingsScreen.classList.remove('hidden');
+            titleScreen.classList.add('hidden'); // Hide title screen when settings are open
+            // Pause game if it's running
+            if (gameStarted && !gameOver) {
+                cancelAnimationFrame(animationFrameId);
+                clearInterval(gameTimerInterval);
+            }
+        }
+
+        function hideSettingsScreen() {
+            settingsScreen.classList.add('hidden');
+            // Show title screen again if game has not started
+            if (!gameStarted) {
+                titleScreen.classList.remove('hidden');
+            }
+            // Resume game if it was running and not over
+            if (gameStarted && !gameOver) {
+                animationFrameId = requestAnimationFrame(animate);
+                gameTimerInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft <= 0) {
+                        clearInterval(gameTimerInterval);
+                        endGame();
+                    }
+                    updateUI();
+                }, 1000);
+            }
+        }
+
+        // Function to update player car color and mesh
+        function updatePlayerCarColor(newColorHex) {
+            // Remove old mesh from scene
+            if (playerCarMesh) {
+                scene.remove(playerCarMesh);
+            }
+
+            // Update playerCar color (convert hex string to number)
+            playerCar.color = parseInt(newColorHex, 16);
+
+            // Create new mesh with updated color
+            playerCarMesh = createCarMesh(playerCar.color);
+            // Maintain player car's current position and rotation
+            playerCarMesh.position.set(playerCar.currentTurnOffset, playerCar.y, playerCar.z);
+            scene.add(playerCarMesh);
+
+            // Save to local storage
+            try {
+                localStorage.setItem('playerCarColor', playerCar.color.toString());
+            } catch (e) {
+                console.error("Error saving car color to localStorage:", e);
+            }
+        }
 
         // Event Listeners for keyboard controls
         document.addEventListener('keydown', (e) => {
@@ -709,6 +979,7 @@
             camera.lookAt(0, 0, -50); // Look towards the road ahead
 
             // Player Car Mesh
+            // Initial player car mesh creation using the potentially loaded color
             playerCarMesh = createCarMesh(playerCar.color);
             // Set initial position to the center of the right lane
             playerCarMesh.position.set((playerLaneMinX + playerLaneMaxX) / 2, playerCar.y, playerCar.z);
@@ -1011,6 +1282,8 @@
             distance = 0;
             playerCar.speed = 0;
             playerCar.currentTurnOffset = (playerLaneMinX + playerLaneMaxX) / 2; // Reset player car position to center of right lane
+            // Re-create player car mesh with current color
+            updatePlayerCarColor('0x' + playerCar.color.toString(16)); // Ensure car is redrawn with current color
             playerCarMesh.position.x = playerCar.currentTurnOffset; // Apply reset position
 
             // Reset time
@@ -1114,15 +1387,38 @@
 
         // Initialize game and Local Storage on window load
         window.onload = async function () {
-            // Detect browser language
-            const userLang = navigator.language || navigator.userLanguage;
-            if (userLang.startsWith('en')) {
-                applyTranslations('en');
-                document.documentElement.lang = 'en'; // Set HTML lang attribute
-            } else {
-                applyTranslations('ja');
-                document.documentElement.lang = 'ja'; // Set HTML lang attribute
+            // Priority: 1. Local Storage, 2. Browser Language, 3. Default (Japanese)
+            let langToApply = 'ja'; // Default language
+
+            try {
+                const savedLang = localStorage.getItem('gameLanguage');
+                if (savedLang && translations[savedLang]) {
+                    langToApply = savedLang;
+                } else {
+                    const userLang = navigator.language || navigator.userLanguage;
+                    if (userLang.startsWith('en')) {
+                        langToApply = 'en';
+                    } else if (userLang.startsWith('zh')) {
+                        langToApply = 'zh-CN';
+                    } else if (userLang.startsWith('ko')) {
+                        langToApply = 'ko';
+                    }
+                }
+            } catch (e) {
+                console.error("Error accessing localStorage for language:", e);
             }
+
+            // Load saved car color before initializing Three.js
+            try {
+                const savedCarColor = localStorage.getItem('playerCarColor');
+                if (savedCarColor) {
+                    playerCar.color = parseInt(savedCarColor, 10);
+                }
+            } catch (e) {
+                console.error("Error loading car color from localStorage:", e);
+            }
+
+            applyTranslations(langToApply);
 
             initThreeJS(); // Initialize Three.js
             loadHighScores(); // Load high scores from local storage
@@ -1142,9 +1438,26 @@
             }, 1000); // Display logo for 1 second
         };
 
+        // Event Listeners for UI buttons
         startButton.addEventListener('click', startGame);
-        messageBoxOkButton.addEventListener('click', hideMessageBox); // Ensure this is correctly assigned
+        messageBoxOkButton.addEventListener('click', hideMessageBox);
         restartButton.addEventListener('click', startGame);
+        settingsButton.addEventListener('click', showSettingsScreen); // Show settings
+        closeSettingsButton.addEventListener('click', hideSettingsScreen); // Close settings
+
+        languageSelect.addEventListener('change', (e) => {
+            const newLang = e.target.value;
+            applyTranslations(newLang);
+            try {
+                localStorage.setItem('gameLanguage', newLang); // Save selected language
+            } catch (e) {
+                console.error("Error saving language to localStorage:", e);
+            }
+        });
+
+        carColorSelect.addEventListener('change', (e) => {
+            updatePlayerCarColor(e.target.value); // Update car color when selected
+        });
     </script>
 </body>
 </html>
