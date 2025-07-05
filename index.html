@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3Dドライビングゲーム</title>
+    <title>3D Driving Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Tone.js Library for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
     <!-- Font Awesome for icons (no longer strictly needed for controls, but kept for general use if any) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -23,6 +25,13 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden; /* Hide scrollbars for true full screen */
+            /* Disable text selection to prevent copying */
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none;   /* Safari */
+            -khtml-user-select: none;    /* Konqueror HTML */
+            -moz-user-select: none;      /* Old versions of Firefox */
+            -ms-user-select: none;       /* Internet Explorer/Edge */
+            user-select: none;           /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
         }
 
         #gameCanvasContainer {
@@ -182,7 +191,7 @@
 
         /* SEGA Logo Overlay Styling */
         #segaLogoOverlay {
-            position: fixed; /* Fixed position for full screen overlay */
+            position: fixed; /* Changed to fixed for full screen overlay */
             top: 0;
             left: 0;
             width: 100vw;
@@ -296,10 +305,18 @@
         .game-title {
             font-size: 3em;
             font-weight: bold;
-            margin-bottom: 40px;
+            margin-bottom: 10px; /* Reduced margin to make space for subtitle */
             text-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(0, 255, 255, 0.3);
             color: #4299e1; /* Blue color for the title */
             /* Removed background to text properties */
+        }
+
+        .game-subtitle {
+            font-size: 1.5em; /* Subtitle size */
+            font-weight: normal;
+            margin-bottom: 40px; /* Margin below subtitle */
+            color: #cbd5e0; /* Lighter color for subtitle */
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
         }
 
         /* Adjustments for elements that are hidden/shown */
@@ -310,16 +327,17 @@
         }
     </style>
 </head>
-<body>
-    <!-- SEGA Logo Overlay -->
-    <div id="segaLogoOverlay">
+<body oncontextmenu="return false;">
+    <!-- SEGA Logo Overlay (initially hidden, shown after loading) -->
+    <div id="segaLogoOverlay" class="hidden">
         <div id="segaLogo">Created by <span id="gemini-gradient-text">Gemini</span></div>
     </div>
 
-    <!-- Title Screen -->
+    <!-- Title Screen (initially hidden) -->
     <div id="titleScreen" class="hidden">
-        <h1 class="game-title">3D ドライビングゲーム</h1>
-        <button id="startButton" class="game-button">ゲーム開始</button>
+        <h1 class="game-title">3D Driving Game</h1>
+        <h2 id="gameSubtitle" class="game-subtitle"></h2> <!-- Subtitle element added here -->
+        <button id="startButton" class="game-button"></button>
     </div>
 
     <!-- Main game canvas container (initially hidden) -->
@@ -330,36 +348,40 @@
     <!-- UI Overlays (initially hidden) -->
     <div class="ui-overlay top-left-ui hidden">
         <div class="game-info-display">
-            <div id="speedDisplay">速度: 0 km/h</div>
-            <div id="distanceDisplay" class="ml-4">距離: 0 m</div>
-            <div id="highScoreDisplay" class="ml-4">ハイスコア: 0 m</div>
-            <div id="timeDisplay" class="ml-4">時間: 00:00</div> <!-- New time display -->
+            <div id="speedDisplay"></div>
+            <div id="distanceDisplay" class="ml-4"></div>
+            <div id="highScoreDisplay" class="ml-4"></div>
+            <div id="timeDisplay" class="ml-4"></div> <!-- New time display -->
         </div>
     </div>
 
     <div class="ui-overlay bottom-center-ui hidden">
         <div class="controls-info">
-            <p>操作方法: ← → (ステアリング), ↑ (加速), ↓ (ブレーキ)</p>
+            <p id="controlsInfoText"></p>
         </div>
         <div class="button-group">
             <!-- Start button is now on the title screen -->
-            <button id="restartButton" class="game-button hidden">リスタート</button>
+            <button id="restartButton" class="game-button hidden"></button>
         </div>
     </div>
 
     <!-- Custom Message Box -->
     <div id="messageBox" class="message-box hidden">
         <p id="messageText"></p>
-        <button id="messageBoxOkButton">OK</button>
+        <button id="messageBoxOkButton"></button>
     </div>
 
-    <script type="module">
+    <script>
         // Three.js variables
         let scene, camera, renderer;
         let playerCarMesh;
         let roadSegments = [];
         let opponentCarMeshes = [];
         let buildings = []; // Array to store building meshes
+
+        // Tone.js audio variables
+        let engineSynth;
+        let isAudioContextStarted = false;
 
         // Game variables
         const gameCanvasContainer = document.getElementById('gameCanvasContainer');
@@ -371,6 +393,8 @@
         const restartButton = document.getElementById('restartButton'); // Still on game UI
         const segaLogoOverlay = document.getElementById('segaLogoOverlay');
         const titleScreen = document.getElementById('titleScreen'); // New title screen element
+        const controlsInfoText = document.getElementById('controlsInfoText'); // Controls info text element
+        const gameSubtitle = document.getElementById('gameSubtitle'); // Subtitle element
 
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
@@ -386,9 +410,9 @@
 
         // Player car properties (adjusted for the new car model's bounding box)
         const playerCar = {
-            x: 0, // X position in 3D space (center of road)
-            y: 0.75, // Y position (adjusted to sit on road)
-            z: -10, // Z position (fixed distance from camera)
+            x: 0, // This is a placeholder, actual position handled by currentTurnOffset
+            y: 0.75,
+            z: -10,
             width: 2.0, // Approximate total width of the car model
             height: 1.5, // Approximate total height
             depth: 4.0, // Approximate total depth
@@ -397,9 +421,8 @@
             maxSpeed: 20,
             acceleration: 0.2,
             deceleration: 0.1,
-            turnSpeed: 0.05, // How fast car turns
-            maxTurnOffset: 3, // Max X offset from center
-            currentTurnOffset: 0, // Current X offset
+            turnSpeed: 0.1, // Increased turn speed for better responsiveness
+            currentTurnOffset: 0, // This will store the car's actual X position
             friction: 0.05
         };
 
@@ -408,7 +431,7 @@
             segmentLength: 20, // Length of each road segment
             numSegments: 15,   // Number of segments to create an infinite road
             width: 10,
-            laneWidth: 2,
+            laneWidth: 0.5, // Thinner lane line to emphasize two lanes
             color: 0x4a5568, // Dark grey
             laneColor: 0xcbd5e0, // Light grey for lanes
             edgeColor: 0xa0aec0, // Grey for road edges
@@ -428,6 +451,15 @@
             lastSpawnTime: 0,
         };
 
+        // Define lane boundaries for player and opponents based on right-hand traffic
+        // Player drives on the right half of the road (X from 0 to 5)
+        const playerLaneMinX = 0 + playerCar.width / 2; // Right side of road, min X for car center (e.g., 1.0)
+        const playerLaneMaxX = road.width / 2 - playerCar.width / 2; // Right side of road, max X for car center (e.g., 4.0)
+
+        // Opponent cars drive on the left half of the road (X from -5 to 0)
+        const opponentLaneMinX = -road.width / 2 + playerCar.width / 2; // Left side of road, min X for car center (e.g., -4.0)
+        const opponentLaneMaxX = 0 - playerCar.width / 2; // Left side of road, max X for car center (e.g., -1.0)
+
         // Opponent cars array
         let opponentCars = [];
         const opponentCarColors = [0x48bb78, 0xed8936, 0x9f7aea, 0xecc94b]; // Green, Orange, Purple, Yellow
@@ -438,6 +470,65 @@
         let distance = 0;
         let highScore = 0;
         let keys = {};
+
+        // Translation texts
+        const translations = {
+            en: {
+                startButton: "Start Game",
+                restartButton: "Restart",
+                speedDisplay: "Speed: ",
+                distanceDisplay: "Distance: ",
+                highScoreDisplay: "High Score: ",
+                timeDisplay: "Time: ",
+                controlsInfoText: "Controls: ← → (Steering), ↑ (Accelerate), ↓ (Brake)",
+                gameOverMessage: "Game Over!\nYour Distance: ",
+                timeUpMessage: "Time's Up!\nYour Distance: ",
+                errorMessageSave: "Error: Failed to save high score.",
+                errorMessageLoad: "Error: Failed to load high scores.",
+                okButton: "OK",
+                audioContextStarted: "AudioContext started.",
+                highScoreSaved: "High score saved to local storage:",
+                highScoreLoaded: "High score loaded from local storage:",
+                invalidTimeScheduling: "Invalid time for scheduling in ",
+                subtitle: "Arcade Racing Experience" // English subtitle
+            },
+            ja: {
+                startButton: "ゲーム開始",
+                restartButton: "リスタート",
+                speedDisplay: "速度: ",
+                distanceDisplay: "距離: ",
+                highScoreDisplay: "ハイスコア: ",
+                timeDisplay: "時間: ",
+                controlsInfoText: "操作方法: ← → (ステアリング), ↑ (加速), ↓ (ブレーキ)",
+                gameOverMessage: "ゲームオーバー！\nあなたの距離: ",
+                timeUpMessage: "時間切れ！\nあなたの距離: ",
+                errorMessageSave: "エラー: ハイスコアの保存に失敗しました。",
+                errorMessageLoad: "エラー: ハイスコアの読み込みに失敗しました。",
+                okButton: "OK",
+                audioContextStarted: "AudioContext started.",
+                highScoreSaved: "ハイスコアをローカルストレージに保存しました:",
+                highScoreLoaded: "ハイスコアをローカルストレージから読み込みました:",
+                invalidTimeScheduling: "スケジューリングの時間が無効です ",
+                subtitle: "アーケードレーシング体験" // Japanese subtitle
+            }
+        };
+
+        let currentLanguage = 'ja'; // Default to Japanese
+
+        // Function to apply translations
+        function applyTranslations(lang) {
+            currentLanguage = lang;
+            const t = translations[lang];
+
+            startButton.textContent = t.startButton;
+            restartButton.textContent = t.restartButton;
+            controlsInfoText.textContent = t.controlsInfoText;
+            messageBoxOkButton.textContent = t.okButton;
+            gameSubtitle.textContent = t.subtitle; // Apply subtitle translation
+
+            // Update dynamic UI elements immediately
+            updateUI();
+        }
 
         // Message box functions
         function showMessage(message) {
@@ -614,7 +705,9 @@
 
             // Player Car Mesh
             playerCarMesh = createCarMesh(playerCar.color);
-            playerCarMesh.position.set(playerCar.x, playerCar.y, playerCar.z);
+            // Set initial position to the center of the right lane
+            playerCarMesh.position.set((playerLaneMinX + playerLaneMaxX) / 2, playerCar.y, playerCar.z);
+            playerCar.currentTurnOffset = playerCarMesh.position.x; // Initialize currentTurnOffset with the starting X
             scene.add(playerCarMesh);
 
             // Create initial road segments
@@ -704,27 +797,41 @@
             // Clamp speed
             playerCar.speed = Math.max(0, Math.min(playerCar.speed, playerCar.maxSpeed));
 
-            // Steering (update currentTurnOffset)
-            if (keys['ArrowLeft']) {
-                playerCar.currentTurnOffset = Math.max(-playerCar.maxTurnOffset, playerCar.currentTurnOffset - playerCar.turnSpeed);
-            } else if (keys['ArrowRight']) {
-                playerCar.currentTurnOffset = Math.min(playerCar.maxTurnOffset, playerCar.currentTurnOffset + playerCar.turnSpeed);
-            } else {
-                // Return to center
-                if (playerCar.currentTurnOffset > 0) {
-                    playerCar.currentTurnOffset = Math.max(0, playerCar.currentTurnOffset - playerCar.turnSpeed / 2);
-                } else if (playerCar.currentTurnOffset < 0) {
-                    playerCar.currentTurnOffset = Math.min(0, playerCar.currentTurnOffset + playerCar.turnSpeed / 2);
+            // Adjust engine sound pitch based on speed
+            if (engineSynth && Tone.context.state === 'running') {
+                const timeForScheduling = Tone.context.currentTime;
+                if (typeof timeForScheduling === 'number' && !isNaN(timeForScheduling)) {
+                    const minFreq = 50;
+                    const maxFreq = 200;
+                    const freq = minFreq + (playerCar.speed / playerCar.maxSpeed) * (maxFreq - minFreq);
+                    engineSynth.frequency.setValueAtTime(freq, timeForScheduling + 0.001);
+                    engineSynth.volume.setValueAtTime(playerCar.speed > 0.1 ? -10 : -Infinity, timeForScheduling + 0.001);
+                } else {
+                    console.error(translations[currentLanguage].invalidTimeScheduling + "updatePlayerCar:", timeForScheduling);
                 }
             }
 
-            // Apply currentTurnOffset to playerCarMesh's x position
+
+            // Steering (update currentTurnOffset)
+            if (keys['ArrowLeft']) {
+                playerCar.currentTurnOffset = Math.max(playerLaneMinX, playerCar.currentTurnOffset - playerCar.turnSpeed);
+            } else if (keys['ArrowRight']) {
+                playerCar.currentTurnOffset = Math.min(playerLaneMaxX, playerCar.currentTurnOffset + playerCar.turnSpeed);
+            } else {
+                // Gently move back to the center of the right lane if no steering input
+                const targetX = (playerLaneMinX + playerLaneMaxX) / 2;
+                if (Math.abs(playerCar.currentTurnOffset - targetX) > 0.05) { // Small threshold to prevent jitter
+                    playerCar.currentTurnOffset += Math.sign(targetX - playerCar.currentTurnOffset) * playerCar.turnSpeed / 2;
+                } else {
+                    playerCar.currentTurnOffset = targetX; // Snap to center if close enough
+                }
+            }
             playerCarMesh.position.x = playerCar.currentTurnOffset;
 
-            // Keep car within road boundaries (check currentTurnOffset)
-            // Using playerCar.width for collision check, which is the approximate total width of the car model
-            if (playerCar.currentTurnOffset < -road.width / 2 + playerCar.width / 2 ||
-                playerCar.currentTurnOffset > road.width / 2 - playerCar.width / 2) {
+            // Road boundary collision check (for going completely off the road, not just into opposing lane)
+            const absoluteRoadMinX = -road.width / 2 + playerCar.width / 2;
+            const absoluteRoadMaxX = road.width / 2 - playerCar.width / 2;
+            if (playerCarMesh.position.x < absoluteRoadMinX || playerCarMesh.position.x > absoluteRoadMaxX) {
                 playerCar.speed *= 0.8; // Lose speed on collision
                 endGame(); // Game over if off road
             }
@@ -735,11 +842,8 @@
 
         // Opponent car functions
         function spawnOpponentCar() {
-            const lanePositions = [
-                -road.width / 4, // Left lane
-                road.width / 4   // Right lane
-            ];
-            const randomLaneX = lanePositions[Math.floor(Math.random() * lanePositions.length)];
+            // Randomly choose a position within the opponent lane (left side)
+            const randomLaneX = opponentLaneMinX + Math.random() * (opponentLaneMaxX - opponentLaneMinX);
             const randomColor = opponentCarColors[Math.floor(Math.random() * opponentCarColors.length)];
             const opponentSpeed = playerCar.speed * (0.8 + Math.random() * 0.4); // Relative speed to player
 
@@ -823,21 +927,23 @@
                 const opponentBox = new THREE.Box3().setFromObject(car.mesh);
 
                 if (playerBox.intersectsBox(opponentBox)) {
-                    endGame(); // Collision detected, game over
+                    // Collision detected, game over (no sound)
+                    endGame();
                     return;
                 }
             }
         }
 
         function updateUI() {
-            speedDisplay.textContent = `速度: ${Math.floor(playerCar.speed * 10)} km/h`;
-            distanceDisplay.textContent = `距離: ${Math.floor(distance)} m`;
-            highScoreDisplay.textContent = `ハイスコア: ${Math.floor(highScore)} m`;
+            const t = translations[currentLanguage];
+            speedDisplay.textContent = `${t.speedDisplay}${Math.floor(playerCar.speed * 10)} km/h`;
+            distanceDisplay.textContent = `${t.distanceDisplay}${Math.floor(distance)} m`;
+            highScoreDisplay.textContent = `${t.highScoreDisplay}${Math.floor(highScore)} m`;
 
             // Format time for display (MM:SS)
             const minutes = Math.floor(timeLeft / 60);
             const seconds = Math.floor(timeLeft % 60);
-            timeDisplay.textContent = `時間: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timeDisplay.textContent = `${t.timeDisplay}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
 
         // The main animation loop
@@ -856,7 +962,39 @@
             animationFrameId = requestAnimationFrame(animate);
         }
 
-        function startGame() {
+        // Tone.js audio setup
+        function setupAudio() {
+            // Engine sound: Oscillator with a filter for a more "engine-like" feel
+            engineSynth = new Tone.Oscillator({
+                frequency: 50, // Start low
+                type: "sawtooth", // Sawtooth wave for a richer sound
+                volume: -Infinity // Start muted
+            }).chain(new Tone.Filter(200, "lowpass"), Tone.Destination); // Lowpass filter to muffle high frequencies
+            engineSynth.start();
+        }
+
+        async function startGame() { // Made async to await Tone.start()
+            // Ensure any previous animation frame is cancelled before starting a new one
+            cancelAnimationFrame(animationFrameId);
+
+            // Start Tone.js AudioContext on first user interaction (button click)
+            if (!isAudioContextStarted) {
+                await Tone.start(); // Await Tone.start() to ensure context is running
+                isAudioContextStarted = true;
+                console.log(translations[currentLanguage].audioContextStarted);
+                setupAudio(); // Setup audio only after context is active
+            }
+
+            // Start engine sound
+            if (engineSynth && Tone.context.state === 'running') {
+                const timeForEngineStart = Tone.context.currentTime;
+                if (typeof timeForEngineStart === 'number' && !isNaN(timeForEngineStart)) {
+                    engineSynth.volume.setValueAtTime(-10, timeForEngineStart + 0.001);
+                } else {
+                    console.error(translations[currentLanguage].invalidTimeScheduling + "startGame (engineSynth):", timeForEngineStart);
+                }
+            }
+
             // Hide title screen and show game UI
             titleScreen.classList.add('hidden');
             gameCanvasContainer.classList.remove('hidden'); // Show the canvas
@@ -867,8 +1005,8 @@
             gameOver = false;
             distance = 0;
             playerCar.speed = 0;
-            playerCar.currentTurnOffset = 0;
-            playerCarMesh.position.x = 0; // Reset player car position
+            playerCar.currentTurnOffset = (playerLaneMinX + playerLaneMaxX) / 2; // Reset player car position to center of right lane
+            playerCarMesh.position.x = playerCar.currentTurnOffset; // Apply reset position
 
             // Reset time
             timeLeft = gameDuration;
@@ -900,6 +1038,9 @@
             }
 
             restartButton.classList.add('hidden'); // This should remain to hide restart button at start of game
+
+            // Restart the animation loop
+            animationFrameId = requestAnimationFrame(animate);
         }
 
         function endGame() {
@@ -908,10 +1049,20 @@
             cancelAnimationFrame(animationFrameId); // Stop the animation loop
             clearInterval(gameTimerInterval); // Stop the timer
 
+            // Stop engine sound
+            if (engineSynth && Tone.context.state === 'running') {
+                const timeForEngineStop = Tone.context.currentTime;
+                if (typeof timeForEngineStop === 'number' && !isNaN(timeForEngineStop)) {
+                    engineSynth.volume.setValueAtTime(-Infinity, timeForEngineStop + 0.001);
+                } else {
+                    console.error(translations[currentLanguage].invalidTimeScheduling + "endGame (engineSynth):", timeForEngineStop);
+                }
+            }
+
             // Check if game ended due to time limit or collision
-            let finalMessage = `ゲームオーバー！\nあなたの距離: ${Math.floor(distance)} m`;
+            let finalMessage = `${translations[currentLanguage].gameOverMessage}${Math.floor(distance)} m`;
             if (timeLeft <= 0) {
-                finalMessage = `時間切れ！\nあなたの距離: ${Math.floor(distance)} m`;
+                finalMessage = `${translations[currentLanguage].timeUpMessage}${Math.floor(distance)} m`;
             }
 
             showMessage(finalMessage);
@@ -927,11 +1078,11 @@
         function saveHighScore(score) {
             try {
                 localStorage.setItem('highScore', score.toString());
-                console.log("High score saved to local storage:", score);
+                console.log(translations[currentLanguage].highScoreSaved, score);
                 loadHighScores(); // Reload scores to show new one
             } catch (e) {
-                console.error("Error saving high score to local storage: ", e);
-                showMessage("エラー: ハイスコアの保存に失敗しました。");
+                console.error(translations[currentLanguage].errorMessageSave, e);
+                showMessage(translations[currentLanguage].errorMessageSave);
             }
         }
 
@@ -939,11 +1090,11 @@
             try {
                 const storedHighScore = localStorage.getItem('highScore');
                 highScore = storedHighScore ? parseInt(storedHighScore, 10) : 0;
-                highScoreDisplay.textContent = `ハイスコア: ${Math.floor(highScore)} m`;
-                console.log("High score loaded from local storage:", highScore);
+                highScoreDisplay.textContent = `${translations[currentLanguage].highScoreDisplay}${Math.floor(highScore)} m`;
+                console.log(translations[currentLanguage].highScoreLoaded, highScore);
             } catch (e) {
-                console.error("Error loading high scores from local storage: ", e);
-                showMessage("エラー: ハイスコアの読み込みに失敗しました。");
+                console.error(translations[currentLanguage].errorMessageLoad, e);
+                showMessage(translations[currentLanguage].errorMessageLoad);
             }
         }
 
@@ -958,11 +1109,23 @@
 
         // Initialize game and Local Storage on window load
         window.onload = async function () {
+            // Detect browser language
+            const userLang = navigator.language || navigator.userLanguage;
+            if (userLang.startsWith('en')) {
+                applyTranslations('en');
+                document.documentElement.lang = 'en'; // Set HTML lang attribute
+            } else {
+                applyTranslations('ja');
+                document.documentElement.lang = 'ja'; // Set HTML lang attribute
+            }
+
             initThreeJS(); // Initialize Three.js
             loadHighScores(); // Load high scores from local storage
             animate(); // Start the 3D animation loop immediately, even before game starts
 
             // Show "Created by Gemini" logo for a few seconds
+            segaLogoOverlay.classList.remove('hidden'); // Show logo overlay
+
             setTimeout(() => {
                 segaLogoOverlay.classList.add('fade-out');
                 setTimeout(() => {
